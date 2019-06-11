@@ -54,25 +54,28 @@ typedef struct Sim{
 // the simulation field.
 typedef struct Field{
 	int Nx, Ny, Nz;					// size of the field.
-	Mat Vx;
-	Mat Vy;
-	Mat Vz;
-	Mat Sxx;
-	Mat Syy;
-	Mat Szz;
-	Mat Syz;
-	Mat Sxz;
-	Mat Sxy;
+	Mat Vx;							// the velocity at x direction, used for computation
+	Mat Vy;							// the velocity at y direciton, used for computation
+	Mat Vz;							// the velocity at z direction, used for computation
+	Mat Vpx;						// previous step velocity at x direction.
+	Mat Vpy;						// previous step velocity at y direciton.
+	Mat Vpz;						// previous step velocity at z direction.
+	Mat Sxx;						// normal stress 1
+	Mat Syy;						// normal stress 2
+	Mat Szz;						// normal stress 3
+	Mat Syz;						// shear stress 1
+	Mat Sxz;						// shear stress 2
+	Mat Sxy;						// sheat stress 3
 }Field;
 
 // the coefficient matrices
 typedef struct Coeff{
-	Mat buox;
-	Mat buoy;
-	Mat buoz;
-	Mat Muyz;
-	Mat Muxz;
-	Mat Muxy;
+	Mat buox;						// buoyancy at x
+	Mat buoy;						// buoyancy at y
+	Mat buoz;						// buoyancy at z
+	Mat Muyz;						// interpolated elastic constant at yz.
+	Mat Muxz;						// interpolated elastic constant at xz.
+	Mat Muxy;						// interpolated elastic constant at xy.
 }Coeff;
 
 #endif

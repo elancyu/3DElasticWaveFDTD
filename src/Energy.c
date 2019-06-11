@@ -1,4 +1,6 @@
 // This file contains the energy, momentum and flux calculations.
+// Checked. The code is safe.
+
 #include"functions.h"
 #include"Datastruct.h"
 #include<stdio.h>
@@ -92,12 +94,15 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 	jy = 0.0;
 	jz = 0.0;
 
-	/* 1st integration method: first interpolate the stress to the location of the velocity and
-	 * then calculate the heat current component and then interpolate back into the cell center.
+	/*// 1st integration method: first interpolate the stress to the location of the velocity and
+	// then calculate the heat current component and then interpolate back into the cell center.
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
 			for (k = 0; k < Nz; k++)
 			{
+				if (rho.e[i][j][k] == 0)
+					continue;
+
 				im = (i - 1 + Nx) % Nx;
 				jm = (j - 1 + Ny) % Ny;
 				km = (k - 1 + Nz) % Nz;
@@ -118,7 +123,7 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 				VzSxz += field.Vz.e[i][j][kp] * (field.Sxz.e[i][j][kp] + field.Sxz.e[ip][j][kp]);
 				VzSxz /= -4;
 				// Jx
-				jx += rho.e[i][j][k] * (VxSxx + VySxy + VzSxz);
+				jx += (VxSxx + VySxy + VzSxz);
 
 				// VxSxy
 				VxSxy = field.Vx.e[i][j][k] * (field.Sxy.e[i][j][k] + field.Sxy.e[i][jp][k]);
@@ -133,7 +138,7 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 				VzSyz += field.Vz.e[i][j][kp] * (field.Syz.e[i][j][kp] + field.Syz.e[i][jp][kp]);
 				VzSyz /= -4;
 				// Jy
-				jy += rho.e[i][j][k] * (VxSxy + VySyy + VzSyz);
+				jy += (VxSxy + VySyy + VzSyz);
 
 				// VxSxz
 				VxSxz = field.Vx.e[i][j][k] * (field.Sxz.e[i][j][k] + field.Sxz.e[i][j][kp]);
@@ -148,7 +153,7 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 				VzSzz += field.Vz.e[i][j][kp] * (field.Szz.e[i][j][k] + field.Szz.e[i][j][kp]);
 				VzSzz /= -4;
 				// Jz
-				jz += rho.e[i][j][k] * (VxSxz + VySyz + VzSzz);
+				jz += (VxSxz + VySyz + VzSzz);
 			} */
 
 	// 2nd integration method: reasoned directly by differencing the energy.
@@ -159,6 +164,7 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 				// skip the virtual cells
 				if (rho.e[i][j][k] == 0)
 					continue;
+
 				im = (i - 1 + Nx) % Nx;
 				jm = (j - 1 + Ny) % Ny;
 				km = (k - 1 + Nz) % Nz;
@@ -168,64 +174,66 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 
 				// x direction
 				// VxSxx
-				VxSxx = field.Vx.e[i][j][k] * (field.Sxx.e[i][j][k] + field.Sxx.e[im][j][k]);
-				VxSxx += field.Vx.e[ip][j][k] * (field.Sxx.e[i][j][k] + field.Sxx.e[ip][j][k]);
-				VxSxx /= -4;
+				VxSxx = (field.Vx.e[i][j][k] + field.Vpx.e[i][j][k]) * (field.Sxx.e[i][j][k] + field.Sxx.e[im][j][k]);
+				VxSxx += (field.Vx.e[ip][j][k] + field.Vpx.e[ip][j][k]) * (field.Sxx.e[i][j][k] + field.Sxx.e[ip][j][k]);
+				VxSxx *= -0.125;;
 				// VySxy
-				VySxy = field.Sxy.e[i][j][k] * (field.Vy.e[im][j][k] + field.Vy.e[i][j][k]);
-				VySxy += field.Sxy.e[i][jp][k] * (field.Vy.e[im][jp][k] + field.Vy.e[i][jp][k]);
-				VySxy += field.Sxy.e[ip][j][k] * (field.Vy.e[i][j][k] + field.Vy.e[ip][j][k]);
-				VySxy += field.Sxy.e[ip][jp][k] * (field.Vy.e[i][jp][k] + field.Vy.e[ip][jp][k]);
-				VySxy /= -8;
+				VySxy = field.Sxy.e[i][j][k] * (field.Vy.e[im][j][k] + field.Vy.e[i][j][k] + field.Vpy.e[im][j][k] + field.Vpy.e[i][j][k]);
+				VySxy += field.Sxy.e[i][jp][k] * (field.Vy.e[im][jp][k] + field.Vy.e[i][jp][k] + field.Vpy.e[im][jp][k] + field.Vpy.e[i][jp][k]);
+				VySxy += field.Sxy.e[ip][j][k] * (field.Vy.e[i][j][k] + field.Vy.e[ip][j][k] + field.Vpy.e[i][j][k] + field.Vpy.e[ip][j][k]);
+				VySxy += field.Sxy.e[ip][jp][k] * (field.Vy.e[i][jp][k] + field.Vy.e[ip][jp][k] + field.Vpy.e[i][jp][k] + field.Vpy.e[ip][jp][k]);
+				VySxy *= -0.0625;
 				// VzSxz
-				VzSxz = field.Sxz.e[i][j][k] * (field.Vz.e[im][j][k] + field.Vz.e[i][j][k]);
-				VzSxz += field.Sxz.e[i][j][kp] * (field.Vz.e[im][j][kp] + field.Vz.e[i][j][kp]);
-				VzSxz += field.Sxz.e[ip][j][k] * (field.Vz.e[i][j][k] + field.Vz.e[ip][j][k]);
-				VzSxz += field.Sxz.e[ip][j][kp] * (field.Vz.e[i][j][kp] + field.Vz.e[ip][j][kp]);
-				VzSxz /= -8;
+				VzSxz = field.Sxz.e[i][j][k] * (field.Vz.e[im][j][k] + field.Vz.e[i][j][k] + field.Vpz.e[im][j][k] + field.Vpz.e[i][j][k]);
+				VzSxz += field.Sxz.e[i][j][kp] * (field.Vz.e[im][j][kp] + field.Vz.e[i][j][kp] + field.Vpz.e[im][j][kp] + field.Vpz.e[i][j][kp]);
+				VzSxz += field.Sxz.e[ip][j][k] * (field.Vz.e[i][j][k] + field.Vz.e[ip][j][k] + field.Vpz.e[i][j][k] + field.Vpz.e[ip][j][k]);
+				VzSxz += field.Sxz.e[ip][j][kp] * (field.Vz.e[i][j][kp] + field.Vz.e[ip][j][kp] + field.Vpz.e[i][j][kp] + field.Vpz.e[ip][j][kp]);
+				VzSxz *= -0.0625;
 				// Jx
 				jx += (VxSxx + VySxy + VzSxz);
 
 				// y direction
 				// VxSxy
-				VxSxy = field.Sxy.e[i][j][k] * (field.Vx.e[i][jm][k] + field.Vx.e[i][j][k]);
-				VxSxy += field.Sxy.e[ip][j][k] * (field.Vx.e[ip][jm][k] + field.Vx.e[ip][j][k]);
-				VxSxy += field.Sxy.e[i][jp][k] * (field.Vx.e[i][j][k] + field.Vx.e[i][jp][k]);
-				VxSxy += field.Sxy.e[ip][jp][k] * (field.Vx.e[ip][j][k] + field.Vx.e[ip][jp][k]);
-				VxSxy /= -8;
+				VxSxy = field.Sxy.e[i][j][k] * (field.Vx.e[i][jm][k] + field.Vx.e[i][j][k] + field.Vpx.e[i][jm][k] + field.Vpx.e[i][j][k]);
+				VxSxy += field.Sxy.e[ip][j][k] * (field.Vx.e[ip][jm][k] + field.Vx.e[ip][j][k] + field.Vpx.e[ip][jm][k] + field.Vpx.e[ip][j][k]);
+				VxSxy += field.Sxy.e[i][jp][k] * (field.Vx.e[i][j][k] + field.Vx.e[i][jp][k] + field.Vpx.e[i][j][k] + field.Vpx.e[i][jp][k]);
+				VxSxy += field.Sxy.e[ip][jp][k] * (field.Vx.e[ip][j][k] + field.Vx.e[ip][jp][k] + field.Vpx.e[ip][j][k] + field.Vpx.e[ip][jp][k]);
+				VxSxy *= -0.0625;
 				// VySyy
-				VySyy = field.Vy.e[i][j][k] * (field.Syy.e[i][j][k] + field.Syy.e[i][j][k]);
-				VySyy += field.Vy.e[i][j][k] * (field.Syy.e[i][j][k] + field.Syy.e[i][j][k]);
-				VySyy /= -4;
+				VySyy = (field.Vy.e[i][j][k] + field.Vpy.e[i][j][k]) * (field.Syy.e[i][j][k] + field.Syy.e[i][jm][k]);
+				VySyy += (field.Vy.e[i][jp][k] + field.Vpy.e[i][jp][k]) * (field.Syy.e[i][j][k] + field.Syy.e[i][jp][k]);
+				VySyy *= -0.125;
 				// VzSyz
-				VzSyz = field.Syz.e[i][j][k] * (field.Vz.e[i][jm][k] + field.Vz.e[i][j][k]);
-				VzSyz += field.Syz.e[i][j][kp] * (field.Vz.e[i][jm][kp] + field.Vz.e[i][j][kp]);
-				VzSyz += field.Syz.e[i][jp][k] * (field.Vz.e[i][j][k] + field.Vz.e[i][jp][k]);
-				VzSyz += field.Syz.e[i][jp][kp] * (field.Vz.e[i][j][kp] + field.Vz.e[i][jp][kp]);
-				VzSyz /= -8;
+				VzSyz = field.Syz.e[i][j][k] * (field.Vz.e[i][jm][k] + field.Vz.e[i][j][k] + field.Vpz.e[i][jm][k] + field.Vpz.e[i][j][k]);
+				VzSyz += field.Syz.e[i][j][kp] * (field.Vz.e[i][jm][kp] + field.Vz.e[i][j][kp] + field.Vpz.e[i][jm][kp] + field.Vpz.e[i][j][kp]);
+				VzSyz += field.Syz.e[i][jp][k] * (field.Vz.e[i][j][k] + field.Vz.e[i][jp][k] + field.Vpz.e[i][j][k] + field.Vpz.e[i][jp][k]);
+				VzSyz += field.Syz.e[i][jp][kp] * (field.Vz.e[i][j][kp] + field.Vz.e[i][jp][kp] + field.Vpz.e[i][j][kp] + field.Vpz.e[i][jp][kp]);
+				VzSyz *= -0.0625;
 				// jy
 				jy += (VxSxy + VySyy + VzSyz);
 
 				// z direction
 				// VxSxz
-				VxSxz = field.Sxz.e[i][j][k] * (field.Vx.e[i][j][km] + field.Vx.e[i][j][k]);
-				VxSxz += field.Sxz.e[ip][j][k] * (field.Vx.e[ip][j][km] + field.Vx.e[ip][j][k]);
-				VxSxz += field.Sxz.e[i][j][kp] * (field.Vx.e[i][j][k] + field.Vx.e[i][j][kp]);
-				VxSxz += field.Sxz.e[ip][j][kp] * (field.Vx.e[ip][j][k] + field.Vx.e[ip][j][kp]);
-				VxSxz /= -8;
+				VxSxz = field.Sxz.e[i][j][k] * (field.Vx.e[i][j][km] + field.Vx.e[i][j][k] + field.Vpx.e[i][j][km] + field.Vpx.e[i][j][k]);
+				VxSxz += field.Sxz.e[ip][j][k] * (field.Vx.e[ip][j][km] + field.Vx.e[ip][j][k] + field.Vpx.e[ip][j][km] + field.Vpx.e[ip][j][k]);
+				VxSxz += field.Sxz.e[i][j][kp] * (field.Vx.e[i][j][k] + field.Vx.e[i][j][kp] + field.Vpx.e[i][j][k] + field.Vpx.e[i][j][kp]);
+				VxSxz += field.Sxz.e[ip][j][kp] * (field.Vx.e[ip][j][k] + field.Vx.e[ip][j][kp] + field.Vpx.e[ip][j][k] + field.Vpx.e[ip][j][kp]);
+				VxSxz *= -0.0625;
 				// VySyz
-				VySyz = field.Syz.e[i][j][k] * (field.Vy.e[i][j][k] + field.Vy.e[i][j][k]);
-				VySyz += field.Syz.e[i][j][k] * (field.Vy.e[i][j][k] + field.Vy.e[i][j][k]);
-				VySyz += field.Syz.e[i][j][k] * (field.Vy.e[i][j][k] + field.Vy.e[i][j][k]);
-				VySyz += field.Syz.e[i][j][k] * (field.Vy.e[i][j][k] + field.Vy.e[i][j][k]);
-				VySyz /= -8;
+				VySyz = field.Syz.e[i][j][k] * (field.Vy.e[i][j][km] + field.Vy.e[i][j][k] + field.Vpy.e[i][j][km] + field.Vpy.e[i][j][k]);
+				VySyz += field.Syz.e[i][jp][k] * (field.Vy.e[i][jp][km] + field.Vy.e[i][jp][k] + field.Vpy.e[i][jp][km] + field.Vpy.e[i][jp][k]);
+				VySyz += field.Syz.e[i][j][kp] * (field.Vy.e[i][j][k] + field.Vy.e[i][j][kp] + field.Vpy.e[i][j][k] + field.Vpy.e[i][j][kp]);
+				VySyz += field.Syz.e[i][jp][kp] * (field.Vy.e[i][jp][k] + field.Vy.e[i][jp][kp] + field.Vpy.e[i][jp][k] + field.Vpy.e[i][jp][kp]);
+				VySyz *= -0.0625;
 				// VzSzz
-				VzSzz = field.Vz.e[i][j][k] * (field.Szz.e[i][j][k] + field.Szz.e[i][j][km]);
-				VzSzz += field.Vz.e[i][j][kp] * (field.Szz.e[i][j][k] + field.Szz.e[i][j][kp]);
-				VzSzz /= -4;
+				VzSzz = (field.Vz.e[i][j][k] + field.Vpz.e[i][j][k]) * (field.Szz.e[i][j][k] + field.Szz.e[i][j][km]);
+				VzSzz += (field.Vz.e[i][j][kp] + field.Vpz.e[i][j][kp]) * (field.Szz.e[i][j][k] + field.Szz.e[i][j][kp]);
+				VzSzz *= -0.125;
 				// jz
 				jz += (VxSxz + VySyz + VzSzz);
 			}
+
+	// 3rd way to do the integration: first interpolate all the quantity to cell center and the multiply.
 
 	i = sim->flux.counter;
 	sim->flux.x[i] = jx;

@@ -1,4 +1,6 @@
 // This file draws the velocity from Maxwell-Boltzmann distribution and evenly distribute the initial kinetic energy in each direction.
+// CHECKED.
+
 #include"Datastruct.h"
 #include"functions.h"
 #include<stdio.h>
@@ -33,6 +35,9 @@ int InitField(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	SetMatSize(&field->Vx, Nx, Ny, Nz);
 	SetMatSize(&field->Vy, Nx, Ny, Nz);
 	SetMatSize(&field->Vz, Nx, Ny, Nz);
+	SetMatSize(&field->Vpx, Nx, Ny, Nz);
+	SetMatSize(&field->Vpy, Nx, Ny, Nz);
+	SetMatSize(&field->Vpz, Nx, Ny, Nz);
 	// Allocate memory and initialize with zeros.
 	MallocMat(&field->Sxx, 0.0);
 	MallocMat(&field->Syy, 0.0);
@@ -43,6 +48,9 @@ int InitField(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	MallocMat(&field->Vx, 0.0);
 	MallocMat(&field->Vy, 0.0);
 	MallocMat(&field->Vz, 0.0);
+	MallocMat(&field->Vpx, 0.0);
+	MallocMat(&field->Vpy, 0.0);
+	MallocMat(&field->Vpz, 0.0);
 
 	// Set the size of the coefficient matrices
 	SetMatSize(&coeff->buox, Nx, Ny, Nz);
@@ -93,26 +101,21 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	cy = 0;
 	cz = 0;
 
-
 	sim->Natom = 0;
-	// no need to check the size of the matrix, assuming periodic boundary condition in X and Y directions.
-
+	// retrieve the size of the matrix.
 	Nx = field->Nx;
 	Ny = field->Ny;
 	Nz = field->Nz;
-
-	// count the number of nonzero mass density
-	for (i = 0; i < Nx; i++)
-		for (j = 0; j < Ny; j++)
-			for (k = 0; k < Nz; k++)
-				if (rho.e[i][j][k] != 0.0)
-					sim->Natom++;
 
 	// first assign random number for the velocities.
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
 			for (k = 0; k < Nz; k++)
 			{
+				// calculate the number of non zero mass density
+				if (rho.e[i][j][k] != 0.0)
+					sim->Natom++;
+
 				// X direction
 				if (coeff->buox.e[i][j][k] != 0)
 				{
@@ -143,6 +146,7 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	mmy /= cy;
 	mmz /= cz;
 
+	// kinetic energy in each direction.
 	kx = 0.0;
 	ky = 0.0;
 	kz = 0.0;
@@ -223,7 +227,7 @@ int InterpolateFreeCoeff(Mat rho, Coeff *coeff)
 	// Mu_yz & Mu_xz
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
-			for (k = 1; k < Nz; k++)
+			for (k = 0; k < Nz; k++)
 			{
 				im = (i - 1 + Nx) % Nx;
 				jm = (j - 1 + Ny) % Ny;
@@ -250,18 +254,14 @@ int InterpolateFreeCoeff(Mat rho, Coeff *coeff)
 	for (k = 0; k < Nz; k++)
 		for (i = 0; i < Nx; i++)
 			for (j = 0; j < Ny; j++)
-			{
 				fprintf(fp,"%e %e %e\n", coeff->Muyz.e[i][j][k], coeff->Muxz.e[i][j][k], coeff->Muxy.e[i][j][k]);
-			}
 	fclose(fp);
 
 	fp = fopen("FreeBCBuoyancy.log","a+");
 	for (k = 0; k < Nz; k++)
 		for (i = 0; i < Nx; i++)
 			for (j = 0; j < Ny; j++)
-			{
 				fprintf(fp,"%e %e %e\n", coeff->buox.e[i][j][k], coeff->buoy.e[i][j][k], coeff->buoz.e[i][j][k]);
-			}
 	fclose(fp);
 	// normal exit
 	return 0;
@@ -339,6 +339,9 @@ int PhysicalCoeff(Sim sim, Coeff *coeff)
 {
 	int i, j, k;
 	int Nx, Ny, Nz;
+	double buo;
+
+	buo = 1.0 / sim.rho;
 
 	Nx = coeff->buox.Nx;
 	Ny = coeff->buox.Ny;
@@ -348,9 +351,9 @@ int PhysicalCoeff(Sim sim, Coeff *coeff)
 		for (j = 0; j < Ny; j++)
 			for (k = 0; k < Nz; k++)
 			{
-				coeff->buox.e[i][j][k] *= 1.0 / sim.rho;
-				coeff->buoy.e[i][j][k] *= 1.0 / sim.rho;
-				coeff->buoz.e[i][j][k] *= 1.0 / sim.rho;
+				coeff->buox.e[i][j][k] *= buo;
+				coeff->buoy.e[i][j][k] *= buo;
+				coeff->buoz.e[i][j][k] *= buo;
 				coeff->Muxy.e[i][j][k] *= sim.mu;
 				coeff->Muxz.e[i][j][k] *= sim.mu;
 				coeff->Muyz.e[i][j][k] *= sim.mu;

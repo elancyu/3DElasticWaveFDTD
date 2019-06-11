@@ -31,9 +31,7 @@ int main()
 	{
 		UpdateStress(sim, rho, field, coeff);
 		if (ti % sim.Ns == 0)
-		{
 			SampleEnergy(&sim, rho, field);
-		}
 		UpdateVelocity(sim, field, coeff);
 	}
 
