@@ -12,6 +12,7 @@ int ReadSim(Sim * sim)
 	// Number of times steps.
 	fscanf(fp,"%d", &sim->Neq);
 	fscanf(fp,"%d", &sim->Npr);
+	fscanf(fp,"%d", &sim->Ns);			// sampling interval.
 	// time step
 	fscanf(fp,"%lf", &sim->dt);
 	// grid spacing
@@ -27,7 +28,8 @@ int ReadSim(Sim * sim)
 	fclose(fp);
 
 	// calculate the velocities and the maximum allowable time step for FDTD stability
-	sim->vp = sqrt((sim->lambda + 2*sim->mu) / sim->rho);
+	sim->lam2mu = sim->lambda + 2*sim->mu;
+	sim->vp = sqrt(sim->lam2mu / sim->rho);
 	sim->vs = sqrt(sim->mu / sim->rho);
 	sim->dV = sim->dx * sim->dx * sim->dx;
 	sim->mass = sim->dV * sim->rho;
@@ -37,6 +39,7 @@ int ReadSim(Sim * sim)
 	printf("===========Overview of the Simulation=============\n");
 	printf("Equilibration: %d steps\n", sim->Neq);
 	printf("Production: %d steps\n", sim->Npr);
+	printf("Sampling interval: %d steps\n", sim->Ns);
 	printf("Time step: %e (s)\n", sim->dt);
 	printf("Grid spacing: %e (m)\n", sim->dx);
 	printf("Lambda: %e (Pa)\n", sim->lambda);
@@ -51,6 +54,7 @@ int ReadSim(Sim * sim)
 	fprintf(fp,"=======Simulation Setting==========\n");
 	fprintf(fp,"Num. of Equilibration Steps: %d\n", sim->Neq);
 	fprintf(fp,"Num. of Production Steps: %d\n", sim->Npr);
+	fprintf(fp,"Sampling interval: %d steps\n", sim->Ns);
 	fprintf(fp,"Grid spacing:%e (m)\n", sim->dx);
 	fprintf(fp,"Time step:%e (s)\n", sim->dt);
 	fprintf(fp,"Lambda: %e (Pa)\n", sim->lambda);

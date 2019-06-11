@@ -4,6 +4,7 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
+#include<time.h>
 
 // Initialize the simulation field
 // allocate memory for the simulation field and the coefficients.
@@ -50,8 +51,6 @@ int InitField(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	SetMatSize(&coeff->Muyz, Nx, Ny, Nz);
 	SetMatSize(&coeff->Muxz, Nx, Ny, Nz);
 	SetMatSize(&coeff->Muxy, Nx, Ny, Nz);
-	SetMatSize(&coeff->Lam2mu, Nx, Ny, Nz);
-	SetMatSize(&coeff->Lam, Nx, Ny, Nz);
 
 	// Allocate Memory and initialize with zeros.
 	MallocMat(&coeff->buox, 0.0);
@@ -60,15 +59,17 @@ int InitField(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	MallocMat(&coeff->Muyz, 0.0);
 	MallocMat(&coeff->Muxz, 0.0);
 	MallocMat(&coeff->Muxy, 0.0);
-	MallocMat(&coeff->Lam2mu, 0.0);
-	MallocMat(&coeff->Lam, 0.0);
 
+	// Initialize RNG seed
+	InitRand((unsigned long long)time(NULL));
 	// Call the interpolation function for the coefficient matrices.
-	InterpolateCoeffs(rho, coeff);
+	InterpolateFreeCoeff(rho, coeff);
 	// Call the initialization function for the Velocity.
 	InitVelocity(sim, rho, field, coeff);
 	// Give physically correct value to the coefficients.
 	PhysicalCoeff(*sim, coeff);
+	// Initialize sampling data set, hard code the length now.
+	InitSampling(sim, 1000);
 	// normal exit
 	return 0;
 }
@@ -147,7 +148,7 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	kz = 0.0;
 
 	// compare the counted cx, cy and cz, they should be the same.
-	printf("(Nx, Ny, Nz) = (%f, %f, %f), Number of cells: %d\n", cx, cy, cz, sim->Natom);
+	printf("(Nx, Ny, Nz) = (%.2f, %.2f, %.2f), Number of cells: %d\n", cx, cy, cz, sim->Natom);
 
 	// achieve strict zero net momentum
 	for (i = 0; i < Nx; i++)
@@ -156,27 +157,32 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 			{
 				if (coeff->buox.e[i][j][k] != 0)
 				{
-					field->Vx.e[i][j][k] -= mmx / coeff->buox.e[i][j][k];
+					field->Vx.e[i][j][k] -= mmx;
 					kx += field->Vx.e[i][j][k] * field->Vx.e[i][j][k] / coeff->buox.e[i][j][k];
 				}
 				if (coeff->buoy.e[i][j][k] != 0)
 				{
-					field->Vy.e[i][j][k] -= mmy / coeff->buoy.e[i][j][k];
+					field->Vy.e[i][j][k] -= mmy;
 					ky += field->Vy.e[i][j][k] * field->Vy.e[i][j][k] / coeff->buoy.e[i][j][k];
 				}
 				if (coeff->buoz.e[i][j][k] != 0)
 				{
-						field->Vz.e[i][j][k] -= mmz / coeff->buoz.e[i][j][k];
-						kz += field->Vz.e[i][j][k] / coeff->buoz.e[i][j][k];
+					field->Vz.e[i][j][k] -= mmz;
+					kz += field->Vz.e[i][j][k] * field->Vz.e[i][j][k] / coeff->buoz.e[i][j][k];
 				}
 			}
 
 	// evenly distribute the kinetic energy, scale the velocity to correspond to n (According to equipartition theorem, should be nkT/m);
 	// scaling factor.
-	kx = sim->Natom / kx;
-	ky = sim->Natom / ky;
-	kz = sim->Natom / kz;
+	kx = sqrt(sim->Natom / kx);
+	ky = sqrt(sim->Natom / ky);
+	kz = sqrt(sim->Natom / kz);
 
+	printf("Scaling Vector = (%e, %e, %e)\n", kx, ky, kz);
+
+	mmx = 0.0;
+	mmy = 0.0;
+	mmz = 0.0;
 	// scaling
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
@@ -185,10 +191,16 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 				field->Vx.e[i][j][k] *= kx;
 				field->Vy.e[i][j][k] *= ky;
 				field->Vz.e[i][j][k] *= kz;
+				// recalculate the initial net momentum
+				if (coeff->buox.e[i][j][k] != 0)
+					mmx += field->Vx.e[i][j][k] / coeff->buox.e[i][j][k];
+				if (coeff->buoy.e[i][j][k] != 0)
+					mmy += field->Vy.e[i][j][k] / coeff->buoy.e[i][j][k];
+				if (coeff->buoz.e[i][j][k] != 0)
+					mmz += field->Vz.e[i][j][k] / coeff->buoz.e[i][j][k];
 			}
 
-	// may need to output the initial velocity for the simulation?
-
+	printf("Net Momentum at Initialization = (%e, %e, %e)\n", mmx, mmy, mmz);
 	// normal exit
 	return 0;
 }
@@ -196,7 +208,7 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 
 // Still need to take care of this part.
 // interpolating the elastic constants for free boundary conditions
-int InterpolateCoeffs(Mat rho, Coeff *coeff)
+int InterpolateFreeCoeff(Mat rho, Coeff *coeff)
 {
 	FILE *fp;
 	int i, j, k;
@@ -215,42 +227,15 @@ int InterpolateCoeffs(Mat rho, Coeff *coeff)
 			{
 				im = (i - 1 + Nx) % Nx;
 				jm = (j - 1 + Ny) % Ny;
-				km = k - 1;
+				km = (k - 1 + Nz) % Nz;
+				// elastic constant Mu
 				if (rho.e[i][j][k] + rho.e[i][jm][k] + rho.e[i][j][km] + rho.e[i][jm][km] == 4.0)
 					coeff->Muyz.e[i][j][k] = 1.0;
 				if (rho.e[i][j][k] + rho.e[im][j][k] + rho.e[i][j][km] + rho.e[im][j][km] == 4.0)
 					coeff->Muxz.e[i][j][k] = 1.0;
-			}
-
-	// mu_xy
-	for (i = 0; i < Nx; i++)
-		for (j = 0; j < Ny; j++)
-			for (k = 0; k < Nz; k++)
-			{
-				im = (i - 1 + Nx) % Nx;
-				jm = (j - 1 + Ny) % Ny;
 				if (rho.e[i][j][k] + rho.e[im][j][k] + rho.e[i][jm][k] + rho.e[im][jm][k] == 4.0)
 					coeff->Muxy.e[i][j][k] = 1.0;
-			}
-
-	// interpolate elastic constant lam2mu
-	for (i = 0; i < Nx; i++)
-		for (j = 0; j < Ny; j++)
-			for (k = 0; k < Nz; k++)
-				if (rho.e[i][j][k] == 1.0)
-				{
-					coeff->Lam.e[i][j][k] = 1.0;
-					coeff->Lam2mu.e[i][j][k] = 1.0;
-				}
-
-	// output the interpolated values
-	for (i = 0; i < Nx; i++)
-		for (j = 0; j < Ny; j++)
-			for (k = 0; k < Nz; k++)
-			{
-				im = (i - 1 + Nx) % Nx;
-				jm = (j - 1 + Ny) % Ny;
-				km = (k - 1 + Nz) % Nz;
+				// buoyancies
 				// needs modification since periodic boundary condition is used in X and Y directions.
 				if (rho.e[i][j][k] + rho.e[im][j][k] > 0.0)
 					coeff->buox.e[i][j][k] = 2.0 / (rho.e[i][j][k] + rho.e[im][j][k]);
@@ -259,23 +244,92 @@ int InterpolateCoeffs(Mat rho, Coeff *coeff)
 				if (rho.e[i][j][k] + rho.e[i][j][km] > 0.0)
 					coeff->buoz.e[i][j][k] = 2.0 / (rho.e[i][j][k] + rho.e[i][j][km]);
 			}
+
 	// record the interpolated coefficients
-	fp = fopen("InterpolatedElasticConstants.log","a+");
+	fp = fopen("FreeBCElasticConstants.log","a+");
 	for (k = 0; k < Nz; k++)
 		for (i = 0; i < Nx; i++)
 			for (j = 0; j < Ny; j++)
 			{
-				fprintf(fp,"%e %e %e %e %e\n", coeff->Muyz.e[i][j][k], coeff->Muxz.e[i][j][k], coeff->Muxy.e[i][j][k], coeff->Lam.e[i][j][k], coeff->Lam2mu.e[i][j][k]);
+				fprintf(fp,"%e %e %e\n", coeff->Muyz.e[i][j][k], coeff->Muxz.e[i][j][k], coeff->Muxy.e[i][j][k]);
 			}
 	fclose(fp);
 
-	fp = fopen("InterpolatedBuoyancy.log","a+");
+	fp = fopen("FreeBCBuoyancy.log","a+");
 	for (k = 0; k < Nz; k++)
 		for (i = 0; i < Nx; i++)
 			for (j = 0; j < Ny; j++)
 			{
 				fprintf(fp,"%e %e %e\n", coeff->buox.e[i][j][k], coeff->buoy.e[i][j][k], coeff->buoz.e[i][j][k]);
 			}
+	fclose(fp);
+	// normal exit
+	return 0;
+}
+
+// Still need to take care of this part.
+// interpolating the elastic constants for fixed boundary conditions
+int InterpolateFixedCoeff(Mat rho, Coeff *coeff)
+{
+	FILE *fp;
+	int i, j, k;
+	int im, jm, km;
+	int Nx, Ny, Nz;
+	double rhosum;
+
+	Nx = rho.Nx;
+	Ny = rho.Ny;
+	Nz = rho.Nz;
+
+	// interpolate the elastic constants for mu
+	// Mu_yz & Mu_xz
+	for (i = 0; i < Nx; i++)
+		for (j = 0; j < Ny; j++)
+			for (k = 0; k < Nz; k++)
+			{
+				im = (i - 1 + Nx) % Nx;
+				jm = (j - 1 + Ny) % Ny;
+				km = (k - 1 + Nz) % Nz;
+				// Mu_yz
+				rhosum = rho.e[i][j][k] + rho.e[i][jm][k] + rho.e[i][j][km] + rho.e[i][jm][km];
+				if (rhosum == 4.0 || rhosum == 3.0)
+					coeff->Muyz.e[i][j][k] = 1.0;
+				else if (rhosum == 2.0)
+					coeff->Muyz.e[i][j][k] = 2.0;
+				// Mu_xz
+				rhosum = rho.e[i][j][k] + rho.e[im][j][k] + rho.e[i][j][km] + rho.e[im][j][km];
+				if (rhosum == 4.0 || rhosum == 3.0)
+					coeff->Muxz.e[i][j][k] = 1.0;
+				else if (rhosum == 2.0)
+					coeff->Muxz.e[i][j][k] = 2.0;
+				// Mu_xy
+				rhosum = rho.e[i][j][k] + rho.e[im][j][k] + rho.e[i][jm][k] + rho.e[im][jm][k];
+				if (rhosum == 4.0 || rhosum == 3.0)
+					coeff->Muxy.e[i][j][k] = 1.0;
+				else if (rhosum == 2.0)
+					coeff->Muxy.e[i][j][k] = 2.0;
+				// buoyancies
+				if (rho.e[i][j][k] * rho.e[im][j][k] > 0.0)
+					coeff->buox.e[i][j][k] = 2.0 / (rho.e[i][j][k] + rho.e[im][j][k]);
+				if (rho.e[i][j][k] * rho.e[i][jm][k] > 0.0)
+					coeff->buoy.e[i][j][k] = 2.0 / (rho.e[i][j][k] + rho.e[i][jm][k]);
+				if (rho.e[i][j][k] * rho.e[i][j][km] > 0.0)
+					coeff->buoz.e[i][j][k] = 2.0 / (rho.e[i][j][k] + rho.e[i][j][km]);
+			}
+
+	// record the interpolated coefficients
+	fp = fopen("FixedBCElasticConstants.log","a+");
+	for (k = 0; k < Nz; k++)
+		for (i = 0; i < Nx; i++)
+			for (j = 0; j < Ny; j++)
+				fprintf(fp,"%e %e %e\n", coeff->Muyz.e[i][j][k], coeff->Muxz.e[i][j][k], coeff->Muxy.e[i][j][k]);
+	fclose(fp);
+
+	fp = fopen("FixedBCBuoyancy.log","a+");
+	for (k = 0; k < Nz; k++)
+		for (i = 0; i < Nx; i++)
+			for (j = 0; j < Ny; j++)
+				fprintf(fp,"%e %e %e\n", coeff->buox.e[i][j][k], coeff->buoy.e[i][j][k], coeff->buoz.e[i][j][k]);
 	fclose(fp);
 	// normal exit
 	return 0;
@@ -300,9 +354,42 @@ int PhysicalCoeff(Sim sim, Coeff *coeff)
 				coeff->Muxy.e[i][j][k] *= sim.mu;
 				coeff->Muxz.e[i][j][k] *= sim.mu;
 				coeff->Muyz.e[i][j][k] *= sim.mu;
-				coeff->Lam.e[i][j][k] *= sim.lambda;
-				coeff->Lam2mu.e[i][j][k] *= (sim.lambda + 2*sim.mu);
 			}
+	// normal exit
+	return 0;
+}
+
+// initialize the sampling space for the heat current and energy
+int InitSampling(Sim *sim, int len)
+{
+	int i;
+
+	// set the parameters
+	sim->energy.counter = 0;
+	sim->energy.len = len;
+	sim->flux.counter = 0;
+	sim->flux.len = len;
+
+	// allocate memory for the logger
+	sim->energy.ke = (double*)malloc(len*sizeof(double));
+	sim->energy.se = (double*)malloc(len*sizeof(double));
+	sim->energy.te = (double*)malloc(len*sizeof(double));
+
+	sim->flux.x = (double*)malloc(len*sizeof(double));
+	sim->flux.y = (double*)malloc(len*sizeof(double));
+	sim->flux.z = (double*)malloc(len*sizeof(double));
+
+	// initialize with zeros
+	for (i = 0; i < len; i++)
+	{
+		sim->energy.se[i] = 0.0;
+		sim->energy.ke[i] = 0.0;
+		sim->energy.te[i] = 0.0;
+		sim->flux.x[i] = 0.0;
+		sim->flux.y[i] = 0.0;
+		sim->flux.z[i] = 0.0;
+	}
+
 	// normal exit
 	return 0;
 }

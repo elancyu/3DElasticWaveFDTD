@@ -3,10 +3,16 @@
 
 /*==================================Energy.c===========================================*/
 // Calculate the global energy
-int GlobalEnergy(Sim sim, Mat rho,Field field);
+int SampleEnergy(Sim *sim, Mat rho,Field field);
 
 // Calculate the heat current
-int HeatCurrent(Sim sim, Mat rho, Field field);
+int SampleHeatCurrent(Sim *sim, Mat rho, Field field);
+
+// write out the energy and then reset the data
+int WriteEnergy(Sim *sim);
+
+// write out the heat current and reset the data
+int WriteHeatCurrent(Sim *sim);
 
 /*==================================Init.c===========================================*/
 // initialize simulation field
@@ -15,11 +21,17 @@ int InitField(Sim *sim, Mat rho, Field *field, Coeff *coeff);
 // Initialize velocity
 int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff);
 
-// Interpolate coefficients including buoyancy and elastic constants.
-int InterpolateCoeffs(Mat rho, Coeff *coeff);
+// Interpolate coefficients including buoyancy and elastic constants, for free boundary condition implementation
+int InterpolateFreeCoeff(Mat rho, Coeff *coeff);
+
+// Interpolate coefficients including buoyancy and elastic constants, for fixed boundary condition implementation
+int InterpolateFixedCoeff(Mat rho, Coeff *coeff);
 
 // Multiply the coefficient matrix with the actual physical parameters
 int PhysicalCoeff(Sim sim, Coeff *coeff);
+
+// Initialize the sampling recorders
+int InitSampling(Sim *sim, int len);
 
 /*==================================Matrix.c===========================================*/
 // set the 3D matrix size
@@ -51,7 +63,7 @@ int ReadSim(Sim * sim);
 
 /*==================================UpdateStress.c===========================================*/
 // update the stress field.
-int UpdateStress(Sim sim, Field field, Coeff coeff);
+int UpdateStress(Sim sim, Mat rho, Field field, Coeff coeff);
 
 /*==================================UpdateVelocity.c===========================================*/
 // update the velocity field
