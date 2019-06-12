@@ -10,9 +10,11 @@ int SampleEnergy(Sim *sim, Mat rho,Field field)
 {
 	int i, j, k;
 	int im, jm, km;
+	int ip, jp, kp;
 	double wyz, wxz, wxy;
 	double wx, wy, wz;
 	double Ek, Es;
+	double ek, es, e;
 	int Nx, Ny, Nz;
 	// remember to remove s11, s12, s44;
 	Es = 0.0;
@@ -23,6 +25,10 @@ int SampleEnergy(Sim *sim, Mat rho,Field field)
 	Ny = rho.Ny;
 	Nz = rho.Nz;
 
+	// eivi
+	sim->evx = 0.0;
+	sim->evy = 0.0;
+	sim->evz = 0.0;
 	// directly add up all Sii^2, and the cross term, SiiSjj.
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
@@ -32,29 +38,44 @@ int SampleEnergy(Sim *sim, Mat rho,Field field)
 				im = (i - 1 + Nx) % Nx;
 				jm = (j - 1 + Ny) % Ny;
 				km = (k - 1 + Nz) % Nz;
+				ip = (i + 1) % Nx;
+				jp = (j + 1) % Ny;
+				kp = (k + 1) % Nz;
+				es = 0.0;
+				ek = 0.0;
 				// Sii^2 && SiiSjj
-				Es += 0.5 * sim->s11 * rho.e[i][j][k] * field.Sxx.e[i][j][k] * field.Sxx.e[i][j][k];
-				Es += 0.5 * sim->s11 * rho.e[i][j][k] * field.Syy.e[i][j][k] * field.Syy.e[i][j][k];
-				Es += 0.5 * sim->s11 * rho.e[i][j][k] * field.Szz.e[i][j][k] * field.Szz.e[i][j][k];
-				Es += sim->s12 * rho.e[i][j][k] * field.Sxx.e[i][j][k] * field.Syy.e[i][j][k];
-				Es += sim->s12 * rho.e[i][j][k] * field.Sxx.e[i][j][k] * field.Szz.e[i][j][k];
-				Es += sim->s12 * rho.e[i][j][k] * field.Syy.e[i][j][k] * field.Szz.e[i][j][k];
+				es = 0.5 * sim->s11 * rho.e[i][j][k] * field.Sxx.e[i][j][k] * field.Sxx.e[i][j][k];
+				es += 0.5 * sim->s11 * rho.e[i][j][k] * field.Syy.e[i][j][k] * field.Syy.e[i][j][k];
+				es += 0.5 * sim->s11 * rho.e[i][j][k] * field.Szz.e[i][j][k] * field.Szz.e[i][j][k];
+				es += sim->s12 * rho.e[i][j][k] * field.Sxx.e[i][j][k] * field.Syy.e[i][j][k];
+				es += sim->s12 * rho.e[i][j][k] * field.Sxx.e[i][j][k] * field.Szz.e[i][j][k];
+				es += sim->s12 * rho.e[i][j][k] * field.Syy.e[i][j][k] * field.Szz.e[i][j][k];
 				// weighting factor for Sij^2
 				wyz = 0.25 * (rho.e[i][j][k] + rho.e[i][jm][k] + rho.e[i][j][km] + rho.e[i][jm][km]);
 				wxz = 0.25 * (rho.e[i][j][k] + rho.e[im][j][k] + rho.e[i][j][km] + rho.e[im][j][km]);
 				wxy = 0.25 * (rho.e[i][j][k] + rho.e[im][j][k] + rho.e[i][jm][k] + rho.e[im][jm][k]);
 				// Sij^2
-				Es += sim->s44 * wyz * field.Syz.e[i][j][k] * field.Syz.e[i][j][k];
-				Es += sim->s44 * wxz * field.Sxz.e[i][j][k] * field.Sxz.e[i][j][k];
-				Es += sim->s44 * wxy * field.Sxy.e[i][j][k] * field.Sxy.e[i][j][k];
+				es += sim->s44 * wyz * field.Syz.e[i][j][k] * field.Syz.e[i][j][k];
+				es += sim->s44 * wxz * field.Sxz.e[i][j][k] * field.Sxz.e[i][j][k];
+				es += sim->s44 * wxy * field.Sxy.e[i][j][k] * field.Sxy.e[i][j][k];
 
 				// Kinetic Energy
 				wx = 0.5 * (rho.e[i][j][k] + rho.e[im][j][k]);
 				wy = 0.5 * (rho.e[i][j][k] + rho.e[i][jm][k]);
 				wz = 0.5 * (rho.e[i][j][k] + rho.e[i][j][km]);
-				Ek += 0.5 * wx * sim->rho * field.Vx.e[i][j][k] * field.Vx.e[i][j][k];
-				Ek += 0.5 * wy * sim->rho * field.Vy.e[i][j][k] * field.Vy.e[i][j][k];
-				Ek += 0.5 *wz * sim->rho * field.Vz.e[i][j][k] * field.Vz.e[i][j][k];
+				ek = 0.5 * wx * sim->rho * field.Vx.e[i][j][k] * field.Vx.e[i][j][k];
+				ek += 0.5 * wy * sim->rho * field.Vy.e[i][j][k] * field.Vy.e[i][j][k];
+				ek += 0.5 *wz * sim->rho * field.Vz.e[i][j][k] * field.Vz.e[i][j][k];
+
+				// Ek and Es summation
+				Es += es;
+				Ek += ek;
+
+				// eivi
+				e = es + ek;
+				sim->evx += 0.5 * e * (field.Vx.e[i][j][k] + field.Vx.e[ip][j][k]);
+				sim->evy += 0.5 * e * (field.Vy.e[i][j][k] + field.Vy.e[i][jp][k]);
+				sim->evz += 0.5 * e * (field.Vz.e[i][j][k] + field.Vz.e[i][j][kp]);
 			}
 
 	// times the volume
@@ -85,6 +106,8 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 	double VxSxy, VySyy, VzSyz;			// components of Jy
 	double VxSxz, VySyz, VzSzz;			// components of Jz
 	double jx, jy, jz;
+	double sxx, syy, szz;
+	double syz, sxz, sxy;
 
 	Nx = rho.Nx;
 	Ny = rho.Ny;
@@ -233,7 +256,10 @@ int SampleHeatCurrent(Sim *sim, Mat rho, Field field)
 				jz += (VxSxz + VySyz + VzSzz);
 			}
 
-	// 3rd way to do the integration: first interpolate all the quantity to cell center and the multiply.
+	i = sim->energy.counter - 1;
+	jx += sim->evx;
+	jy += sim->evy;
+	jz += sim->evz;
 
 	i = sim->flux.counter;
 	sim->flux.x[i] = jx;

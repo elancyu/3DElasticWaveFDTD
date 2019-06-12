@@ -49,6 +49,7 @@ typedef struct Sim{
 	double s11, s12, s44;			// simply convenient for the strain energy calculation.
 	struct Energy energy;			// energy records
 	struct Flux flux;				// flux records.
+	double evx, evy, evz;			// sigma eivx, sigma eivy, sigma eivz.
 }Sim;
 
 // the simulation field.
