@@ -33,6 +33,7 @@ typedef struct Sim{
 	int Neq;						// number of time steps in equilibration stage.
 	int Npr;						// number of time steps in production stage.
 	int Ns;							// Sampling interval to reduce I/O time.
+	int No;							// output interval, or the length of the storage.
 	double dx;						// grid spacing.
 	double dt;						// time step.
 	double lambda;					// lame constant lambda
@@ -50,6 +51,8 @@ typedef struct Sim{
 	struct Energy energy;			// energy records
 	struct Flux flux;				// flux records.
 	double evx, evy, evz;			// sigma eivx, sigma eivy, sigma eivz.
+	struct Flux convf;				// convection rectified parameters due to the average energy;
+	double EiSumAve;				// temporal average of sigma Ei.
 }Sim;
 
 // the simulation field.

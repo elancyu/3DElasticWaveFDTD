@@ -30,26 +30,27 @@ int main()
 	for (ti = 0; ti < sim.Neq; ti++)
 	{
 		UpdateStress(sim, rho, field, coeff);
+		UpdateVelocity(sim, field, coeff);
 		if (ti % sim.Ns == 0)
 			SampleEnergy(&sim, rho, field);
-		UpdateVelocity(sim, field, coeff);
 	}
 
 	// Production Stage
 	for (ti = 0; ti < sim.Npr; ti++)
 	{
 		UpdateStress(sim, rho, field, coeff);
+		UpdateVelocity(sim, field, coeff);
 		if (ti % sim.Ns == 0)
 		{
 			SampleEnergy(&sim, rho, field);
 			SampleHeatCurrent(&sim, rho, field);
 		}
-		UpdateVelocity(sim, field, coeff);
 	}
 	time(&end);
 
 	fp = fopen("Simulation.log","a+");
 	fprintf(fp,"Elapsed time: %.2f (s)\n", difftime(end, start));
+	fprintf(fp,"EiSumAve: %e\n", sim.EiSumAve * sim.time / (sim.Ns * sim.dt));
 	fclose(fp);
 	// normal exit
 	return 0;

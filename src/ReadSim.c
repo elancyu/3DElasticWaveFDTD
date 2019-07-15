@@ -35,6 +35,9 @@ int ReadSim(Sim * sim)
 	sim->mass = sim->dV * sim->rho;
 	sim->mdt = sim->dx / sqrt(3) / sim->vp;
 
+	// Hard Code Output interval
+	sim->No = 10000;
+
 	// print out to the screen
 	printf("===========Overview of the Simulation=============\n");
 	printf("Equilibration: %d steps\n", sim->Neq);
@@ -55,6 +58,7 @@ int ReadSim(Sim * sim)
 	fprintf(fp,"Num. of Equilibration Steps: %d\n", sim->Neq);
 	fprintf(fp,"Num. of Production Steps: %d\n", sim->Npr);
 	fprintf(fp,"Sampling interval: %d steps\n", sim->Ns);
+	fprintf(fp,"Output interval: %d samplings\n", sim->No);
 	fprintf(fp,"Grid spacing:%e (m)\n", sim->dx);
 	fprintf(fp,"Time step:%e (s)\n", sim->dt);
 	fprintf(fp,"Lambda: %e (Pa)\n", sim->lambda);

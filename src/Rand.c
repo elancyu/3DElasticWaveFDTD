@@ -1,8 +1,7 @@
 /* Random number generator: MT19937 */
 // Copy from MC src directly
-// input: none
-// call built-in RNG to provide randseed.
-// Call: RandR() to give a Random number in (0,1)
+// Call: RandR() to generate a random number in uniformly distributed in (0,1)
+// Call: RandG() to generate a random number in Gaussian distribution.
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -32,7 +31,6 @@ void InitRand(unsigned long long seed)
 // generate a random number(real) between 0 and 1
 // in: void
 // return: the generated number
-
 double RandR(void)
 {
     int i;
@@ -70,42 +68,36 @@ double RandR(void)
     return (x>> 11) * (1.0/9007199254740991.0);
 }
 
-// May need to test this function. It is a function to generate Rand Number in Gaussian Distribution Using Central Limit Theorem.
-/*double RandG(double E, double V)
-{
-	// Use the central limit theorem
-	int NSum = 25;
-	int i;
-	double x = 0.0;
-
-	for (i = 0; i < NSum; i++)
-		x += RandR();
-
-	x -= NSum / 2;
-	x /= sqrt(NSum / 12);
-
-	return x;
-}*/
-
-
 // Generate random number following gaussian distribution using Box - Muller Method.
 // input: expectation E and variance V.
-// output:
+// output: random number in Gaussian distribution
 double RandG(double E, double V)
 {
-	double u = 0.0, v = 0.0, r = 0.0, c = 0.0;
-	double R;
+	static double v, fac;
+	static int  phase = 0;
 
-	while ( r == 0 || r>= 1.0)
+	double S, Z, U1, U2, u;
+
+	if (phase)
+		Z = v * fac;
+	else
 	{
-		u = 2*RandR() - 1.0;
-		v = 2*RandR() - 1.0;
-		r = u*u + v*v;
-	}
-	c = sqrt(-2*log(r)/r);
-	// The random number following Gaussian distribution with an expectation of 0, and variance of 1.
-	R = c*u;
+		do
+		{
+			U1 = RandR();
+			U2 = RandR();
 
-	// Random number following Gaussian distribution with an expectation of E and variance of V.
-	return (V*R + E);
+			u = 2 * U1 - 1;
+			v = 2 * U2 - 1;
+			S = u * u + v * v;
+		}
+		while (S >= 1);
+
+		fac = sqrt(-2 * log(S) / S);
+		Z = u * fac;
+	}
+
+	phase = 1 - phase;
+
+	return Z;
 }
