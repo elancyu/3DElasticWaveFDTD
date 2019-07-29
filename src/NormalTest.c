@@ -30,13 +30,17 @@ double JBTest(double *dist, int len)
 		K3 += (dist[i] - mu) * (dist[i] - mu) * (dist[i] - mu);
 		K4 += (dist[i] - mu) * (dist[i] - mu) * (dist[i] - mu) * (dist[i] - mu);
 	}
+	K2 /= len;
+	K3 /= len;
+	K4 /= len;
 	// Calculate Kurtosis and Skewness.
 	Skew = K3 / pow(K2, 1.5);
 	Kurt = K4 / (K2 * K2) - 3;
 
 	// Calculate the JB value
-	JB = Skew * Skew * 6.0 / len + Kurt * Kurt * 24.0 / len;
+	JB = Skew * Skew *len / 6 + Kurt * Kurt * len /24;
 
+	printf("JB value: %e\n", JB);
 	return JB;
 }
 
