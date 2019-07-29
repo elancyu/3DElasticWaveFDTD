@@ -68,3 +68,13 @@ int UpdateStress(Sim sim, Mat rho, Field field, Coeff coeff);
 /*==================================UpdateVelocity.c===========================================*/
 // update the velocity field
 int UpdateVelocity(Sim sim, Field field, Coeff coeff);
+
+/*==================================NormalTest.c===========================================*/
+// Calculate the Jarque-Bera value for the distribution.
+double JBTest(double *dist, int len);
+
+// Generate a random number array in normal distribution so that the JB value is lower than some threshold.
+int GenRandGArray(double *arr, int len, int Natom);
+
+// Initialize the velocity in 3 directions.
+int InitVelocityS(Sim *sim, Mat rho, Field *field, Coeff *coeff);

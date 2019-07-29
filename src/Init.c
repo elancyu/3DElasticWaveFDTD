@@ -6,7 +6,6 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<math.h>
-#include<time.h>
 
 // Initialize the simulation field
 // allocate memory for the simulation field and the coefficients.
@@ -16,6 +15,7 @@
 int InitField(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 {
 	int Nx, Ny, Nz;
+	unsigned long long RandSeed;
 
 	// retrieve the simulation domain size
 	Nx = rho.Nx;
@@ -68,12 +68,10 @@ int InitField(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	MallocMat(&coeff->Muxz, 0.0);
 	MallocMat(&coeff->Muxy, 0.0);
 
-	// Initialize RNG seed
-	InitRand((unsigned long long)time(NULL));
 	// Call the interpolation function for the coefficient matrices.
 	InterpolateFreeCoeff(rho, coeff);
 	// Call the initialization function for the Velocity.
-	InitVelocity(sim, rho, field, coeff);
+	InitVelocityS(sim, rho, field, coeff);
 	// Give physically correct value to the coefficients.
 	PhysicalCoeff(*sim, coeff);
 	// Initialize sampling data set, hard code the length now.
@@ -108,7 +106,8 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 	Ny = field->Ny;
 	Nz = field->Nz;
 
-	// first assign random number for the velocities.
+	// new_version: only assign velocities to the internal points
+	// first assign random number for the velocities, independently.
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
 			for (k = 0; k < Nz; k++)
@@ -118,27 +117,37 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 					sim->Natom++;
 
 				// X direction
-				if (coeff->buox.e[i][j][k] != 0)
+				if (coeff->buox.e[i][j][k] == 1)
 				{
 					field->Vx.e[i][j][k] = RandG(0,1);
-					m1x += field->Vx.e[i][j][k]/ coeff->buox.e[i][j][k];
-					cx += 1.0 / coeff->buox.e[i][j][k];
+					m1x += field->Vx.e[i][j][k];
+					cx += 1.0;
 				}
+			}
 
+	for (i = 0; i < Nx; i++)
+		for (j = 0; j < Ny; j++)
+			for (k = 0; k < Nz; k++)
+			{
 				// Y direction
-				if (coeff->buoy.e[i][j][k] != 0)
+				if (coeff->buoy.e[i][j][k] == 1)
 				{
 					field->Vy.e[i][j][k] = RandG(0,1);
-					m1y += field->Vy.e[i][j][k] / coeff->buoy.e[i][j][k];
-					cy += 1.0 / coeff->buoy.e[i][j][k];
+					m1y += field->Vy.e[i][j][k];
+					cy += 1.0;
 				}
+			}
 
+	for (i = 0; i < Nx; i++)
+		for (j = 0; j < Ny; j++)
+			for (k = 0; k < Nz; k++)
+			{
 				// Z direction
-				if (coeff->buoz.e[i][j][k] != 0)
+				if (coeff->buoz.e[i][j][k] == 1)
 				{
 					field->Vz.e[i][j][k] = RandG(0,1);
-					m1z += field->Vz.e[i][j][k] / coeff->buoz.e[i][j][k];
-					cz += 1.0 / coeff->buoz.e[i][j][k];
+					m1z += field->Vz.e[i][j][k];
+					cz += 1.0 ;
 				}
 			}
 
@@ -161,20 +170,20 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 		for (j = 0; j < Ny; j++)
 			for (k = 0; k < Nz; k++)
 			{
-				if (coeff->buox.e[i][j][k] != 0)
+				if (coeff->buox.e[i][j][k] == 1)
 				{
 					field->Vx.e[i][j][k] -= m1x;
-					m2x += field->Vx.e[i][j][k] * field->Vx.e[i][j][k] / coeff->buox.e[i][j][k];
+					m2x += field->Vx.e[i][j][k] * field->Vx.e[i][j][k];
 				}
-				if (coeff->buoy.e[i][j][k] != 0)
+				if (coeff->buoy.e[i][j][k] == 1)
 				{
 					field->Vy.e[i][j][k] -= m1y;
-					m2y += field->Vy.e[i][j][k] * field->Vy.e[i][j][k] / coeff->buoy.e[i][j][k];
+					m2y += field->Vy.e[i][j][k] * field->Vy.e[i][j][k];
 				}
-				if (coeff->buoz.e[i][j][k] != 0)
+				if (coeff->buoz.e[i][j][k] == 1)
 				{
 					field->Vz.e[i][j][k] -= m1z;
-					m2z += field->Vz.e[i][j][k] * field->Vz.e[i][j][k] / coeff->buoz.e[i][j][k];
+					m2z += field->Vz.e[i][j][k] * field->Vz.e[i][j][k];
 				}
 			}
 
@@ -201,20 +210,20 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 				field->Vy.e[i][j][k] *= m2y;
 				field->Vz.e[i][j][k] *= m2z;
 				// recalculate the initial net momentum
-				if (coeff->buox.e[i][j][k] != 0)
+				if (coeff->buox.e[i][j][k] == 1)
 				{
-					m1x += field->Vx.e[i][j][k] / coeff->buox.e[i][j][k];
-					m3x += field->Vx.e[i][j][k] * field->Vx.e[i][j][k] * field->Vx.e[i][j][k] / coeff->buox.e[i][j][k];
+					m1x += field->Vx.e[i][j][k];
+					m3x += field->Vx.e[i][j][k] * field->Vx.e[i][j][k] * field->Vx.e[i][j][k];
 				}
-				if (coeff->buoy.e[i][j][k] != 0)
+				if (coeff->buoy.e[i][j][k] == 1)
 				{
-					m1y += field->Vy.e[i][j][k] / coeff->buoy.e[i][j][k];
-					m3y += field->Vy.e[i][j][k] * field->Vy.e[i][j][k] * field->Vy.e[i][j][k] / coeff->buoy.e[i][j][k];
+					m1y += field->Vy.e[i][j][k];
+					m3y += field->Vy.e[i][j][k] * field->Vy.e[i][j][k] * field->Vy.e[i][j][k];
 				}
-				if (coeff->buoz.e[i][j][k] != 0)
+				if (coeff->buoz.e[i][j][k] == 1)
 				{
-					m1z += field->Vz.e[i][j][k] / coeff->buoz.e[i][j][k];
-					m3z += field->Vz.e[i][j][k] * field->Vz.e[i][j][k] * field->Vz.e[i][j][k] / coeff->buoz.e[i][j][k];
+					m1z += field->Vz.e[i][j][k];
+					m3z += field->Vz.e[i][j][k] * field->Vz.e[i][j][k] * field->Vz.e[i][j][k];
 				}
 			}
 
@@ -223,15 +232,33 @@ int InitVelocity(Sim *sim, Mat rho, Field *field, Coeff *coeff)
 
 	// output to check the distribution
 	FILE *fp;
+	// X
 	fp = fopen("Vx.log","a+");
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
 			for (k = 0; k < Nz; k++)
-			{
-				if (coeff->buox.e[i][j][k] != 0)
+				if (coeff->buox.e[i][j][k] == 1)
 					fprintf(fp,"%e\n", field->Vx.e[i][j][k]);
-			}
 	fclose(fp);
+
+	// Y
+	fp = fopen("Vy.log","a+");
+	for (i = 0; i < Nx; i++)
+		for (j = 0; j < Ny; j++)
+			for (k = 0; k < Nz; k++)
+				if (coeff->buoy.e[i][j][k] == 1)
+					fprintf(fp,"%e\n", field->Vy.e[i][j][k]);
+	fclose(fp);
+
+	// Z
+	fp = fopen("Vz.log","a+");
+	for (i = 0; i < Nx; i++)
+		for (j = 0; j < Ny; j++)
+			for (k = 0; k < Nz; k++)
+				if (coeff->buoz.e[i][j][k] == 1)
+					fprintf(fp,"%e\n", field->Vz.e[i][j][k]);
+	fclose(fp);
+
 	// normal exit
 	return 0;
 }

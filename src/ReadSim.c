@@ -3,10 +3,13 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include "Datastruct.h"
+#include"functions.h"
+#include<time.h>
 
 int ReadSim(Sim * sim)
 {
 	FILE *fp;
+	unsigned long long RandSeed;
 
 	fp = fopen("Simulation.in","a+");
 	// Number of times steps.
@@ -36,7 +39,7 @@ int ReadSim(Sim * sim)
 	sim->mdt = sim->dx / sqrt(3) / sim->vp;
 
 	// Hard Code Output interval
-	sim->No = 10000;
+	sim->No = 100000;
 
 	// print out to the screen
 	printf("===========Overview of the Simulation=============\n");
@@ -53,8 +56,16 @@ int ReadSim(Sim * sim)
 	printf("CFL time step: %e (s)\n", sim->mdt);
 
 	// output the simulation setting
+	// Initialize the RNG
+	// Initialize RNG seed
+	srand((unsigned)time(NULL));
+	RandSeed = (unsigned long long)((rand() * 9973 + 9949) * 7211 + 6067);
+	InitRand(RandSeed);
+	printf("Rand Seed:%llu\n", RandSeed);
+
 	fp = fopen("Simulation.log","a+");
 	fprintf(fp,"=======Simulation Setting==========\n");
+	fprintf(fp,"Rand Seed: %llu\n", RandSeed);
 	fprintf(fp,"Num. of Equilibration Steps: %d\n", sim->Neq);
 	fprintf(fp,"Num. of Production Steps: %d\n", sim->Npr);
 	fprintf(fp,"Sampling interval: %d steps\n", sim->Ns);

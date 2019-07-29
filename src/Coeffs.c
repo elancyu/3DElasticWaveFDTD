@@ -18,7 +18,7 @@ int InterpolateFreeCoeff(Mat rho, Coeff *coeff)
 	Nz = rho.Nz;
 
 	// interpolate the elastic constants for mu
-	// Mu_yz & Mu_xz
+	// Mu_yz, Mu_xz 7 Mu_xy
 	for (i = 0; i < Nx; i++)
 		for (j = 0; j < Ny; j++)
 			for (k = 0; k < Nz; k++)

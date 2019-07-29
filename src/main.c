@@ -31,6 +31,7 @@ int main()
 	{
 		UpdateStress(sim, rho, field, coeff);
 		UpdateVelocity(sim, field, coeff);
+
 		if (ti % sim.Ns == 0)
 			SampleEnergy(&sim, rho, field);
 	}
@@ -40,6 +41,7 @@ int main()
 	{
 		UpdateStress(sim, rho, field, coeff);
 		UpdateVelocity(sim, field, coeff);
+
 		if (ti % sim.Ns == 0)
 		{
 			SampleEnergy(&sim, rho, field);
